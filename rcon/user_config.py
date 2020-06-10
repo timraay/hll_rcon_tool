@@ -86,7 +86,39 @@ class AutoBroadcasts:
         return set_user_config(self.BROADCASTS_ENABLED, bool_)
 
 
+class AutoRotationPresets:
+    ROTATION_PRESETS_KEY = "map_rotation_presets"
+
+    def seed_db(self, sess):
+        if _get_conf(sess, self.ROTATION_PRESETS_KEY) is None:
+            _add_conf(sess, self.ROTATION_PRESETS_KEY, {})
+
+    def get_rotation_presets(self):
+        return get_user_config(self.ROTATION_PRESETS_KEY)
+
+    def set_rotation_presets(self, preset_dict):
+        if not preset_dict:
+            preset_dict = {}
+
+        if not isinstance(preset_dict, dict):
+            raise InvalidConfigurationError("invalid map rotation preset")
+
+        sanitized = {}
+        for key, value in preset_dict.items():
+            key = str(key)
+            if not value:
+                value = []
+            if not isinstance(value, list):
+                raise InvalidConfigurationError("map rotation preset value must be a list")
+            sanitized[key] = value
+
+        set_user_config(self.ROTATION_PRESETS_KEY, sanitized)
+
+
 def seed_default_config():
     with enter_session() as sess:
         AutoBroadcasts().seed_db(sess)
+        sess.commit()
+    with enter_session() as sess:
+        AutoRotationPresets().seed_db(sess)
         sess.commit()

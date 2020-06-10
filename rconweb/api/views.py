@@ -19,7 +19,11 @@ from rcon.player_history import (
     remove_player_from_blacklist,
     get_player_profile
 )
-from rcon.user_config import AutoBroadcasts, InvalidConfigurationError
+from rcon.user_config import (
+    AutoBroadcasts,
+    InvalidConfigurationError,
+    AutoRotationPresets,
+)
 from rcon.cache_utils import RedisCached, get_redis_pool
 from .discord import send_to_discord_audit
 
@@ -301,6 +305,51 @@ def text_scoreboard(request):
         '''
     )
 
+@csrf_exempt
+def set_rotation_presets(request):
+    failed = False
+    res = None
+    data = _get_data(request)
+    broadcasts = AutoRotationPresets()
+    config_keys = {
+        'map_rotation_presets': broadcasts.set_rotation_presets,
+    }
+    try:
+        for k, v in data.items():
+            if k in config_keys:
+                config_keys[k](v)
+    except InvalidConfigurationError as e:
+        failed = True
+        res = str(e)
+
+    return JsonResponse({
+        "result": res,
+        "command": "set_rotation_presets",
+        "arguments": data,
+        "failed": failed
+    })
+
+@csrf_exempt
+def get_rotation_presets(request):
+    failed = False
+    config = None
+
+    try:
+        presets = AutoRotationPresets()
+        config = {
+            'rotation_presets': presets.get_rotation_presets(),
+        }
+    except Exception as e:
+        logger.exception(f"error getting map rotation presets: {e}")
+        failed = True
+
+    return JsonResponse({
+        "result": config,
+        "command": "get_rotation_presets",
+        "arguments": None,
+        "failed": failed
+    })
+
 PREFIXES_TO_EXPOSE = [
     'get_', 'set_', 'do_'
 ]
@@ -314,6 +363,8 @@ commands = [
     ("get_auto_broadcasts_config", get_auto_broadcasts_config),
     ("set_auto_broadcasts_config", set_auto_broadcasts_config),
     ("clear_cache", clear_cache),
+    ("set_rotation_presets", set_rotation_presets),
+    ("get_rotation_presets", get_rotation_presets),
 ]
 
 # Dynamically register all the methods from ServerCtl
